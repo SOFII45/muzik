@@ -124,14 +124,17 @@ if songs:
         p_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
         
         if p_id:
-            img = f"https://www.googleapis.com/drive/v3/files/{p_id}?alt=media&key={API_KEY}"
-            st.image(img, use_container_width=True)
+            # Görsel için de alternatif link yapısı daha sağlıklı olabilir
+            img = f"https://drive.google.com/uc?export=view&id={p_id}"
+            # UYARI DÜZELTMESİ: use_container_width=True yerine width='stretch'
+            st.image(img, width='stretch')
         
-        # Audio Player
-        stream = f"https://www.googleapis.com/drive/v3/files/{cur['id']}?alt=media&key={API_KEY}"
+        # SES OYNATICI DÜZELTMESİ: 
+        # API anahtarlı link yerine doğrudan indirme (uc) linkini kullanıyoruz
+        stream = f"https://drive.google.com/uc?export=download&id={cur['id']}"
         st.audio(stream, format="audio/mp3")
         
-        # Navigasyon
+        # Navigasyon (Buradaki butonlarda da gerekirse düzenleme yapılabilir)
         c1, c2 = st.columns(2)
         with c1:
             if st.button("⏮️ Geri"):
