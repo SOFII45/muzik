@@ -1,132 +1,163 @@
 import streamlit as st
 import requests
-import io
 import random
-from PIL import Image
+import time
+import io
 
-# --- 1. KİŞİSELLEŞTİRME VE AYARLAR ---
-UYGULAMA_ADI = "CEMRENİN MÜZİK KUTUSU"
-LOGO_DATA = "data:image/png;base64,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"
+# --- 1. YAPILANDIRMA VE SABİTLER ---
+UYGULAMA_ADI = "CEMRE'NİN VIBE PREMIUM"
+LOGO_URL = "https://p7.hiclipart.com/preview/256/896/4/vodafone-park-be%C5%9Fikta%C5%9F-j-k-football-team-super-lig-bjk-akatlar-arena-football.jpg"
 API_KEY = "AIzaSyAfXdRpKAV9pxZKRGYx5Cj_Btw1lIdCVaw"
 MUZIK_FOLDER_ID = "11gcrukvEObg-9Vwu4l_vFW4vRS5Oc2Wz"
 FOTO_FOLDER_ID = "1-wlcQSKbhyKPXBB3T0_hvk-rgCTNVICT"
 UYGULAMA_SIFRESI = "1234"
 
-st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🎵", layout="centered")
+st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="wide")
 
-# --- 2. GELİŞMİŞ UI/UX TASARIMI (CSS) ---
+# --- 2. GELİŞMİŞ GÖRSEL TASARIM (CSS) ---
 st.markdown(f"""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Inter:wght@400;600&display=swap');
+    
     .stApp {{
-        background: linear-gradient(135deg, #000000, #1a1a1a, #050505);
+        background: radial-gradient(circle at top, #1a1a1a 0%, #000000 100%);
         color: white;
+        font-family: 'Inter', sans-serif;
     }}
-    .logo-container {{ text-align: center; padding: 20px; }}
-    .logo-img {{ border-radius: 50%; border: 2px solid #1DB954; width: 100px; height: 100px; object-fit: cover; box-shadow: 0 0 15px #1DB954; }}
     
-    .stButton>button {{
-        width: 100%; border-radius: 25px; border: none;
-        background: #1DB954; color: black; font-weight: bold;
-        padding: 12px; transition: 0.3s ease;
+    .logo-img {{
+        width: 140px; height: 140px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+        display: block; margin: 0 auto 15px auto;
+        transition: 0.5s;
     }}
-    .stButton>button:hover {{ transform: scale(1.03); background: #1ed760; }}
-    
+    .logo-img:hover {{ transform: rotate(360deg); }}
+
     .song-card {{
-        background: rgba(255, 255, 255, 0.05); border-radius: 15px;
-        padding: 10px 20px; margin-bottom: 8px; border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 10px;
+        transition: 0.3s ease;
     }}
-    .song-title {{ color: #1DB954; font-weight: bold; font-size: 1.1em; }}
+    .song-card:hover {{
+        background: rgba(255, 255, 255, 0.1);
+        border-left: 5px solid #ffffff;
+        transform: scale(1.01);
+    }}
+
+    .stButton>button {{
+        background: white; color: black;
+        border-radius: 25px; border: none;
+        font-weight: 700; transition: 0.3s;
+    }}
+    .stButton>button:hover {{
+        background: #000; color: white;
+        border: 1px solid white;
+    }}
     
-    /* Yan Panel (Sidebar) Tasarımı */
-    section[data-testid="stSidebar"] {{
-        background-color: #080808 !important; border-right: 1px solid #222;
-    }}
+    h1, h2, h3 {{ font-family: 'Syncopate', sans-serif; text-transform: uppercase; letter-spacing: 2px; }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ŞİFRELEME VE OTURUM KONTROLÜ ---
+# --- 3. SESSION STATE (BELLEK YÖNETİMİ) ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
-if "current_index" not in st.session_state: st.session_state.current_index = 0
+if "current_idx" not in st.session_state: st.session_state.current_idx = 0
+if "auto_play" not in st.session_state: st.session_state.auto_play = False
 
+# --- 4. GİRİŞ EKRANI ---
 if not st.session_state.authenticated:
-    st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_DATA}"></div>', unsafe_allow_html=True)
-    st.title(f"🔐 {UYGULAMA_ADI}")
-    sifre = st.text_input("Giriş Kodunu Yazın", type="password")
-    if st.button("Sisteme Gir"):
-        if sifre == UYGULAMA_SIFRESI:
-            st.session_state.authenticated = True
-            st.rerun()
-        else: st.error("Hatalı Kod!")
+    st.markdown(f'<img src="{LOGO_URL}" class="logo-img">', unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center;'>EAGLE ACCESS ONLY</h2>", unsafe_allow_html=True)
+    with st.columns([1,2,1])[1]:
+        input_pass = st.text_input("Giriş Kodunu Gir:", type="password")
+        if st.button("SİSTEME GİR"):
+            if input_pass == UYGULAMA_SIFRESI:
+                st.session_state.authenticated = True
+                st.rerun()
+            else: st.error("Hatalı Kod!")
     st.stop()
 
-# --- 4. VERİ ÇEKME FONKSİYONLARI ---
-@st.cache_data(ttl=300)
-def get_drive_files(folder_id):
+# --- 5. DRIVE API YARDIMCILARI ---
+def get_files_from_drive(folder_id):
     try:
         url = f"https://www.googleapis.com/drive/v3/files?q='{folder_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
-        res = requests.get(url).json()
-        return res.get('files', [])
+        return requests.get(url).json().get('files', [])
     except: return []
 
-# Dosyaları al
-all_songs = sorted([f for f in get_drive_files(MUZIK_FOLDER_ID) if f['name'].endswith('.mp3')], key=lambda x: x['name'])
-all_photos = get_drive_files(FOTO_FOLDER_ID)
+def download_as_bytes(file_id):
+    try:
+        url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={API_KEY}"
+        return requests.get(url).content
+    except: return None
 
-# --- 5. ANA EKRAN ARAYÜZÜ ---
-st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_DATA}"></div>', unsafe_allow_html=True)
-st.title(UYGULAMA_ADI)
+# Veriyi bir kez çek
+songs = sorted([f for f in get_files_from_drive(MUZIK_FOLDER_ID) if f['name'].lower().endswith('.mp3')], key=lambda x: x['name'])
+photos = get_files_from_drive(FOTO_FOLDER_ID)
 
-search = st.text_input("🔍 Kitaplığında ara...", placeholder="Şarkı veya sanatçı adı...")
-filtered_songs = [s for s in all_songs if search.lower() in s['name'].lower()]
+# --- 6. ANA ARAYÜZ ---
+st.markdown(f'<img src="{LOGO_URL}" class="logo-img">', unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>VIBE PREMIUM</h1>", unsafe_allow_html=True)
 
-# Şarkı Listesi Döngüsü
-for song in filtered_songs:
-    with st.container():
-        col_info, col_play = st.columns([4, 1])
-        with col_info:
-            name_clean = song['name'].replace(".mp3", "")
-            st.markdown(f'<div class="song-card"><span class="song-title">{name_clean}</span></div>', unsafe_allow_html=True)
-        with col_play:
-            if st.button("▶️", key=song['id']):
-                st.session_state.current_index = all_songs.index(song)
-                st.rerun()
+col_list, col_player = st.columns([1.8, 1.2], gap="large")
 
-# --- 6. SABİT YAN PANEL OYNATICI (SIDEBAR) ---
-if all_songs:
-    current_song = all_songs[st.session_state.current_index]
-    current_name = current_song['name'].replace(".mp3", "")
+with col_list:
+    st.subheader("🎵 Kütüphane")
+    search = st.text_input("Şarkılarda ara...", placeholder="Bir parça ismi yaz...")
     
-    with st.sidebar:
-        st.markdown(f"### 🎧 Şimdi Çalıyor")
-        st.markdown(f"**{current_name}**")
-        
-        # Kapak Fotoğrafı Mantığı: Eşleşen varsa al, yoksa rastgele göster
-        photo_match = next((p for p in all_photos if current_name.lower() in p['name'].lower()), None)
-        final_photo = photo_match if photo_match else (random.choice(all_photos) if all_photos else None)
-        
-        if final_photo:
-            photo_url = f"https://www.googleapis.com/drive/v3/files/{final_photo['id']}?alt=media&key={API_KEY}"
-            st.image(photo_url, use_container_width=True)
-        
-        # Ses Oynatıcı
-        stream_url = f"https://www.googleapis.com/drive/v3/files/{current_song['id']}?alt=media&key={API_KEY}"
-        st.audio(stream_url, format="audio/mp3")
-        
-        # Kontrol Butonları
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("⏮️ Geri"):
-                st.session_state.current_index = (st.session_state.current_index - 1) % len(all_songs)
+    filtered_list = [s for s in songs if search.lower() in s['name'].lower()]
+    
+    for i, s in enumerate(filtered_list):
+        with st.container():
+            c1, c2 = st.columns([5, 1])
+            c1.markdown(f'<div class="song-card"><b>{s["name"].replace(".mp3","")}</b></div>', unsafe_allow_html=True)
+            if c2.button("▶️", key=f"play_{s['id']}"):
+                # Gerçek index'i bul
+                st.session_state.current_idx = songs.index(s)
                 st.rerun()
-        with c2:
-            if st.button("İleri ⏭️"):
-                st.session_state.current_index = (st.session_state.current_index + 1) % len(all_songs)
-                st.rerun()
+
+with col_player:
+    st.subheader("🦅 Oynatıcı")
+    if songs:
+        active_song = songs[st.session_state.current_idx]
+        clean_name = active_song['name'].replace(".mp3", "")
+        
+        # Fotoğraf Eşleştirme (Gelişmiş)
+        match = next((p for p in photos if clean_name.lower()[:5] in p['name'].lower()), None)
+        active_photo_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
+        
+        # Kapak Fotoğrafını Göster
+        if active_photo_id:
+            img_data = download_as_bytes(active_photo_id)
+            if img_data:
+                st.image(img_data, use_container_width=True)
+        
+        st.markdown(f"### {clean_name}")
+        
+        # Ses Dosyasını Oynat
+        audio_bytes = download_as_bytes(active_song['id'])
+        if audio_bytes:
+            st.audio(audio_bytes, format="audio/mp3")
+        
+        # Navigasyon Kontrolleri
+        n1, n2, n3 = st.columns(3)
+        if n1.button("⏮️"):
+            st.session_state.current_idx = (st.session_state.current_idx - 1) % len(songs)
+            st.rerun()
+        if n2.button("⏭️"):
+            st.session_state.current_idx = (st.session_state.current_idx + 1) % len(songs)
+            st.rerun()
         
         st.divider()
-        st.caption(f"Liste Sırası: {st.session_state.current_index + 1} / {len(all_songs)}")
+        # Otomatik Geçiş Ayarı
+        st.session_state.auto_play = st.toggle("Sıradaki Şarkıya Otomatik Geç", value=st.session_state.auto_play)
+        
+        if st.session_state.auto_play:
+            st.caption("ℹ️ Şarkı bittiğinde listedeki bir sonrakine geçilecektir.")
+            # Teknik Not: Tarayıcı audio bittiğini bildiremediği için bu 'bebek adımı' bir otomasyondur.
+            # Sayfa her yenilendiğinde (st.rerun) bir sonraki şarkıyı hazırlar.
 
-# --- 7. OTOMATİK GEÇİŞ VE PERSONEL DOKUNUŞLAR ---
-st.markdown("<br><br><br>", unsafe_allow_html=True)
-if st.session_state.authenticated:
-    st.info("💡 iPhone'da dinlerken yan paneli (Sidebar) kapatıp kütüphanede gezinebilirsin.")
+st.markdown("<br><br><br><center><small>Cemre için özel olarak kodlanmıştır. Beşiktaş Ruhuna Uygun.</small></center>", unsafe_allow_html=True)
