@@ -4,13 +4,13 @@ import random
 import base64
 
 # --- 1. AYARLAR VE KİŞİSELLEŞTİRME ---
-UYGULAMA_ADI = "CEMRENİN MÜZİK KUTUSU"
+UYGULAMA_ADI = "CEMOŞUN MÜZİK KUTUSU"
 # Yeni Beşiktaş Logo Linki
 LOGO_URL = "https://p7.hiclipart.com/preview/256/896/4/vodafone-park-be%C5%9Fikta%C5%9F-j-k-football-team-super-lig-bjk-akatlar-arena-football.jpg"
 API_KEY = "AIzaSyAfXdRpKAV9pxZKRGYx5Cj_Btw1lIdCVaw"
 MUZIK_FOLDER_ID = "11gcrukvEObg-9Vwu4l_vFW4vRS5Oc2Wz"
 FOTO_FOLDER_ID = "1-wlcQSKbhyKPXBB3T0_hvk-rgCTNVICT"
-UYGULAMA_SIFRESI = "1234"
+UYGULAMA_SIFRESI = "1903"
 
 st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="centered")
 
@@ -72,7 +72,7 @@ if "idx" not in st.session_state: st.session_state.idx = 0
 
 if not st.session_state.auth:
     st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_URL}"></div>', unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>Giriş Yap</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>HOŞGELDİN KARTALİÇE</h1>", unsafe_allow_html=True)
     sifre = st.text_input("Uygulama Şifresi", type="password")
     if st.button("Sistemi Başlat"):
         if sifre == UYGULAMA_SIFRESI:
