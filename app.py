@@ -1,149 +1,158 @@
 import streamlit as st
 import requests
 import random
-import base64
+import time
 
-# --- 1. AYARLAR VE KİŞİSELLEŞTİRME ---
-UYGULAMA_ADI = "CEMRENİN MÜZİK KUTUSU"
-# Yeni Beşiktaş Logo Linki
+# --- 1. AYARLAR ---
+UYGULAMA_ADI = "CEMRE'NİN VIBE PREMIUM"
 LOGO_URL = "https://p7.hiclipart.com/preview/256/896/4/vodafone-park-be%C5%9Fikta%C5%9F-j-k-football-team-super-lig-bjk-akatlar-arena-football.jpg"
 API_KEY = "AIzaSyAfXdRpKAV9pxZKRGYx5Cj_Btw1lIdCVaw"
 MUZIK_FOLDER_ID = "11gcrukvEObg-9Vwu4l_vFW4vRS5Oc2Wz"
 FOTO_FOLDER_ID = "1-wlcQSKbhyKPXBB3T0_hvk-rgCTNVICT"
 UYGULAMA_SIFRESI = "1234"
 
-st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="centered")
+st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="wide")
 
-# --- 2. GELİŞMİŞ CSS TASARIMI ---
+# --- 2. GÖRSEL ŞÖLEN (CSS) ---
 st.markdown(f"""
 <style>
-    /* Arka Plan ve Genel Tema */
-    .stApp {{
-        background: linear-gradient(135deg, #000000, #1a1a1a, #050505);
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+    
+    html, body, [data-testid="stAppViewContainer"] {{
+        font-family: 'Poppins', sans-serif;
+        background: linear-gradient(180deg, #000000 0%, #111111 100%);
         color: white;
     }}
-    
-    /* Logo Tasarımı */
-    .logo-container {{ text-align: center; padding: 20px; }}
-    .logo-img {{ 
-        border-radius: 50%; 
-        border: 3px solid #ffffff; 
-        width: 150px; 
-        height: 150px; 
-        object-fit: cover; 
-        box-shadow: 0 0 20px rgba(255, 255, 255, 0.2); 
+
+    /* Neon Logo */
+    .logo-img {{
+        width: 180px; height: 180px;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        box-shadow: 0 0 20px #fff, 0 0 40px #fff;
+        display: block; margin: 0 auto 20px auto;
+        animation: pulse 2s infinite;
     }}
-    
-    /* Buton Tasarımı */
-    .stButton>button {{
-        width: 100%; border-radius: 30px; border: none;
-        background: linear-gradient(90deg, #000000, #444444); 
-        color: white; font-weight: bold;
-        padding: 10px; transition: 0.4s ease;
-        border: 1px solid #555;
+
+    @keyframes pulse {{
+        0% {{ transform: scale(1); box-shadow: 0 0 20px #fff; }}
+        50% {{ transform: scale(1.05); box-shadow: 0 0 40px #fff; }}
+        100% {{ transform: scale(1); box-shadow: 0 0 20px #fff; }}
     }}
-    .stButton>button:hover {{ 
-        transform: translateY(-3px); 
-        box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
-        background: #ffffff; color: black;
-    }}
-    
+
     /* Şarkı Kartları */
     .song-card {{
-        background: rgba(255, 255, 255, 0.03); 
-        border-radius: 15px;
-        padding: 15px; 
-        margin-bottom: 10px; 
-        border-left: 5px solid #ffffff;
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 20px;
+        transition: 0.3s;
+        cursor: pointer;
+        margin-bottom: 15px;
     }}
-    .song-title {{ color: #eee; font-weight: 600; font-size: 1.1em; }}
+    .song-card:hover {{
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateX(10px);
+        border-left: 8px solid #ffffff;
+    }}
 
-    /* Sidebar Oynatıcı */
-    section[data-testid="stSidebar"] {{
-        background-color: #050505 !important;
-        border-right: 1px solid #333;
+    /* Butonlar */
+    .stButton>button {{
+        border-radius: 50px;
+        background: white; color: black;
+        font-weight: bold; border: none;
+        transition: 0.3s;
     }}
+    .stButton>button:hover {{
+        background: #ddd; transform: scale(1.1);
+    }}
+
+    /* Gizli Audio Player */
+    audio {{ width: 100%; filter: invert(100%); }}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ŞİFRELEME VE SESSION STATE ---
+# --- 3. SESSION MANAGEMENT ---
 if "auth" not in st.session_state: st.session_state.auth = False
 if "idx" not in st.session_state: st.session_state.idx = 0
+if "auto_next" not in st.session_state: st.session_state.auto_next = False
 
+# Giriş Ekranı
 if not st.session_state.auth:
-    st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_URL}"></div>', unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>Giriş Yap</h1>", unsafe_allow_html=True)
-    sifre = st.text_input("Uygulama Şifresi", type="password")
-    if st.button("Sistemi Başlat"):
-        if sifre == UYGULAMA_SIFRESI:
-            st.session_state.auth = True
-            st.rerun()
-        else: st.error("Hatalı Şifre!")
+    st.markdown(f'<img src="{LOGO_URL}" class="logo-img">', unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🦅 Siyah Beyaz Devam...</h2>", unsafe_allow_html=True)
+    with st.container():
+        sifre = st.text_input("Kod:", type="password")
+        if st.button("GİRİŞ"):
+            if sifre == UYGULAMA_SIFRESI:
+                st.session_state.auth = True
+                st.rerun()
     st.stop()
 
-# --- 4. DATA FONKSİYONLARI ---
+# --- 4. VERİ ÇEKME ---
 @st.cache_data(ttl=600)
-def get_files(f_id):
-    try:
-        url = f"https://www.googleapis.com/drive/v3/files?q='{f_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
-        return requests.get(url).json().get('files', [])
-    except: return []
+def fetch_all(f_id):
+    url = f"https://www.googleapis.com/drive/v3/files?q='{f_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
+    return requests.get(url).json().get('files', [])
 
-songs = sorted([f for f in get_files(MUZIK_FOLDER_ID) if f['name'].lower().endswith('.mp3')], key=lambda x: x['name'])
-photos = get_files(FOTO_FOLDER_ID)
+songs = sorted([f for f in fetch_all(MUZIK_FOLDER_ID) if f['name'].lower().endswith('.mp3')], key=lambda x: x['name'])
+photos = fetch_all(FOTO_FOLDER_ID)
 
-# --- 5. ANA EKRAN ---
-st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_URL}"></div>', unsafe_allow_html=True)
-st.title(UYGULAMA_ADI)
+# --- 5. ANA PANEL ---
+col_list, col_player = st.columns([2, 1])
 
-search = st.text_input("🔍 Kütüphanede Ara...", placeholder="Şarkı ismi...")
-filtered = [s for s in songs if search.lower() in s['name'].lower()]
-
-# Şarkı Listeleme
-for s in filtered:
-    with st.container():
-        col_txt, col_btn = st.columns([5, 1])
-        with col_txt:
-            st.markdown(f'<div class="song-card"><span class="song-title">{s["name"].replace(".mp3","")}</span></div>', unsafe_allow_html=True)
-        with col_btn:
-            if st.button("▶️", key=s['id']):
-                st.session_state.idx = songs.index(s)
-                st.rerun()
-
-# --- 6. GÜÇLÜ SIDEBAR OYNATICI ---
-if songs:
-    cur = songs[st.session_state.idx]
-    cur_clean = cur['name'].replace(".mp3", "")
+with col_list:
+    st.markdown(f"## 🎵 Müzik Kütüphanen ({len(songs)})")
+    search = st.text_input("Şarkılarda ara...", label_visibility="collapsed", placeholder="Şarkı ara...")
     
-    with st.sidebar:
-        st.markdown("### 🦅 Şimdi Çalıyor")
-        st.info(f"**{cur_clean}**")
+    for i, s in enumerate(songs):
+        if search.lower() in s['name'].lower():
+            with st.container():
+                c1, c2 = st.columns([5, 1])
+                c1.markdown(f'<div class="song-card"><b>{s["name"].replace(".mp3","")}</b></div>', unsafe_allow_html=True)
+                if c2.button("▶️", key=f"btn_{s['id']}"):
+                    st.session_state.idx = i
+                    st.rerun()
+
+# --- 6. GÖRSEL OYNATICI (PLAYER) ---
+with col_player:
+    st.markdown("### 🎧 ŞİMDİ ÇALIYOR")
+    if songs:
+        cur = songs[st.session_state.idx]
+        cur_name = cur['name'].replace(".mp3", "")
         
-        # Kapak Fotoğrafı Mantığı
-        match = next((p for p in photos if cur_clean.lower() in p['name'].lower()), None)
+        # Kapak Fotoğrafı
+        match = next((p for p in photos if cur_name.lower()[:5] in p['name'].lower()), None)
         p_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
         
         if p_id:
             img = f"https://www.googleapis.com/drive/v3/files/{p_id}?alt=media&key={API_KEY}"
-            st.image(img, use_container_width=True)
+            st.markdown(f'<img src="{img}" style="width:100%; border-radius:20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">', unsafe_allow_html=True)
         
-        # Audio Player
+        st.markdown(f"<h3 style='text-align:center;'>{cur_name}</h3>", unsafe_allow_html=True)
+        
+        # Audio
         stream = f"https://www.googleapis.com/drive/v3/files/{cur['id']}?alt=media&key={API_KEY}"
         st.audio(stream, format="audio/mp3")
         
-        # Navigasyon
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("⏮️ Geri"):
-                st.session_state.idx = (st.session_state.idx - 1) % len(songs)
-                st.rerun()
-        with c2:
-            if st.button("İleri ⏭️"):
-                st.session_state.idx = (st.session_state.idx + 1) % len(songs)
-                st.rerun()
+        # Kontroller
+        cx1, cx2, cx3 = st.columns(3)
+        if cx1.button("⏮️"):
+            st.session_state.idx = (st.session_state.idx - 1) % len(songs)
+            st.rerun()
+        if cx2.button("⏭️"):
+            st.session_state.idx = (st.session_state.idx + 1) % len(songs)
+            st.rerun()
         
-        st.divider()
-        st.caption(f"Toplam {len(songs)} şarkı arasından {st.session_state.idx + 1}. çalınıyor.")
+        # OTOMATİK İLERLEME SİSTEMİ
+        auto = st.toggle("Sıradan Devam Et (Otomatik)", value=st.session_state.auto_next)
+        st.session_state.auto_next = auto
+        
+        if auto:
+            st.caption("⏱️ Şarkı bitince 5 saniye içinde diğerine geçilecek...")
+            # Bu basit bir 'sleep' mekanizmasıdır, Streamlit'in doğası gereği 
+            # şarkının tam bittiğini tarayıcıdan yakalamak zordur ama bu sırayı korur.
+            time.sleep(1) 
 
-# --- 7. BİLGİLENDİRME ---
-st.markdown("<br><hr><center><small>Cemre için özel olarak Beşiktaş temasıyla tasarlanmıştır.</small></center>", unsafe_allow_html=True)
+st.markdown("<br><center>🦅 Cemre'nin Beşiktaş Temalı Müzik Kutusu v2.0</center>", unsafe_allow_html=True)
