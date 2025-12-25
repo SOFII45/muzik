@@ -1,15 +1,16 @@
 import streamlit as st
 import requests
 import random
+import time
 import base64
 
 # --- 1. AYARLAR VE KİŞİSELLEŞTİRME ---
-UYGULAMA_ADI = "CEMRENİN MÜZİK KUTUSU"
+UYGULAMA_ADI = "CEMOŞUN MÜZİK KUTUSU"
 LOGO_URL = "https://p7.hiclipart.com/preview/256/896/4/vodafone-park-be%C5%9Fikta%C5%9F-j-k-football-team-super-lig-bjk-akatlar-arena-football.jpg"
 API_KEY = "AIzaSyAfXdRpKAV9pxZKRGYx5Cj_Btw1lIdCVaw"
 MUZIK_FOLDER_ID = "11gcrukvEObg-9Vwu4l_vFW4vRS5Oc2Wz"
 FOTO_FOLDER_ID = "1-wlcQSKbhyKPXBB3T0_hvk-rgCTNVICT"
-UYGULAMA_SIFRESI = "1234"
+UYGULAMA_SIFRESI = "1903"
 
 st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="centered")
 
@@ -35,7 +36,7 @@ st.markdown(f"""
         color: white; font-weight: bold;
         padding: 10px; transition: 0.4s ease;
         border: 1px solid #555;
-    }}
+    }
     .stButton>button:hover {{ 
         transform: translateY(-3px); 
         box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
@@ -48,6 +49,7 @@ st.markdown(f"""
         margin-bottom: 10px; 
         border-left: 5px solid #ffffff;
     }}
+    .song-title {{ color: #eee; font-weight: 600; font-size: 1.1em; }}
     section[data-testid="stSidebar"] {{
         background-color: #050505 !important;
         border-right: 1px solid #333;
@@ -55,13 +57,14 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE ---
+# --- 3. SESSION STATE (BELLEK YÖNETİMİ) ---
 if "auth" not in st.session_state: st.session_state.auth = False
 if "idx" not in st.session_state: st.session_state.idx = 0
 
+# Şifre Ekranı
 if not st.session_state.auth:
     st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_URL}"></div>', unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>Giriş Yap</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>HOŞGELDİN KARTALİÇE</h1>", unsafe_allow_html=True)
     sifre = st.text_input("Uygulama Şifresi", type="password")
     if st.button("Sistemi Başlat"):
         if sifre == UYGULAMA_SIFRESI:
@@ -70,18 +73,20 @@ if not st.session_state.auth:
         else: st.error("Hatalı Şifre!")
     st.stop()
 
-# --- 4. DATA ---
+# --- 4. VERİ ÇEKME FONKSİYONLARI ---
 @st.cache_data(ttl=600)
 def get_files(f_id):
     try:
         url = f"https://www.googleapis.com/drive/v3/files?q='{f_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
-        return requests.get(url).json().get('files', [])
-    except: return []
+        res = requests.get(url).json()
+        return res.get('files', [])
+    except:
+        return []
 
 songs = sorted([f for f in get_files(MUZIK_FOLDER_ID) if f['name'].lower().endswith(('.mp3', '.m4a', '.wav'))], key=lambda x: x['name'])
 photos = get_files(FOTO_FOLDER_ID)
 
-# --- 5. ANA EKRAN ---
+# --- 5. ANA EKRAN LİSTELEME ---
 st.markdown(f'<div class="logo-container"><img class="logo-img" src="{LOGO_URL}"></div>', unsafe_allow_html=True)
 st.title(UYGULAMA_ADI)
 
@@ -92,42 +97,47 @@ for s in filtered:
     with st.container():
         col_txt, col_btn = st.columns([5, 1])
         with col_txt:
-            st.markdown(f'<div class="song-card"><b>{s["name"].split(".")[0]}</b></div>', unsafe_allow_html=True)
+            clean_name = s["name"].replace(".mp3", "").replace(".m4a", "").replace(".wav", "")
+            st.markdown(f'<div class="song-card"><span class="song-title">{clean_name}</span></div>', unsafe_allow_html=True)
         with col_btn:
-            if st.button("▶️", key=s['id']):
+            if st.button("▶️", key=f"play_{s['id']}"):
                 st.session_state.idx = songs.index(s)
                 st.rerun()
 
-# --- 6. GÜÇLÜ SIDEBAR OYNATICI ---
+# --- 6. GÜÇLÜ SIDEBAR OYNATICI (DÜZELTİLMİŞ) ---
 if songs:
     cur = songs[st.session_state.idx]
-    cur_clean = cur['name'].split('.')[0]
+    cur_clean = cur['name'].replace(".mp3", "").replace(".m4a", "").replace(".wav", "")
     
     with st.sidebar:
         st.markdown("### 🦅 Şimdi Çalıyor")
         st.info(f"**{cur_clean}**")
         
+        # Kapak Fotoğrafı
         match = next((p for p in photos if cur_clean.lower() in p['name'].lower()), None)
         p_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
         
         if p_id:
-            # Görsel için direct stream
             img_url = f"https://www.googleapis.com/drive/v3/files/{p_id}?alt=media&key={API_KEY}"
             st.image(img_url, width='stretch')
         
-        # --- SES ÇÖZÜMÜ: HTML AUDIO TAG ---
-        # st.audio bazen Google linklerini sevmiyor, bu yüzden HTML5 player kullanıyoruz.
-        stream_url = f"https://www.googleapis.com/drive/v3/files/{cur['id']}?alt=media&key={API_KEY}"
+        # --- ŞARKI DEĞİŞTİRME ÇÖZÜMÜ ---
+        # 1. Her yüklemede yeni bir timestamp ekleyerek tarayıcıyı kandırıyoruz (cache engelleme)
+        t_stamp = int(time.time())
+        stream_url = f"https://www.googleapis.com/drive/v3/files/{cur['id']}?alt=media&key={API_KEY}&t={t_stamp}"
         
+        # 2. HTML5 Player: Key kullanarak her seferinde DOM'un yenilenmesini sağlıyoruz
+        # Bu sayede 'İleri' deyince eski şarkı silinip yenisi zorunlu yüklenir.
         audio_html = f"""
-            <audio controls autoplay style="width: 100%;">
+            <audio controls autoplay key="{cur['id']}_{t_stamp}" style="width: 100%;">
                 <source src="{stream_url}" type="audio/mp3">
-                Tarayıcınız bu ses dosyasını desteklemiyor.
+                Tarayıcınız bu oynatıcıyı desteklemiyor.
             </audio>
         """
         st.markdown(audio_html, unsafe_allow_html=True)
         
-        # Navigasyon
+        # Navigasyon Butonları
+        st.write("---")
         c1, c2 = st.columns(2)
         with c1:
             if st.button("⏮️ Geri"):
@@ -139,6 +149,7 @@ if songs:
                 st.rerun()
         
         st.divider()
-        st.caption(f"{len(songs)} şarkıdan {st.session_state.idx + 1}. çalıyor.")
+        st.caption(f"Kütüphane: {len(songs)} Şarkı | Sıra: {st.session_state.idx + 1}")
 
-st.markdown("<br><hr><center><small>Cemre için özel olarak tasarlandı.</small></center>", unsafe_allow_html=True)
+# --- 7. ALT BİLGİ ---
+st.markdown("<br><hr><center><small>Cemre için özel olarak Beşiktaş temasıyla tasarlanmıştır.tüm hakları yusefiler iletişim bilgi ltd ye aittir.copyrıght 2026</small></center>", unsafe_allow_html=True)
