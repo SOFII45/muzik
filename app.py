@@ -42,8 +42,10 @@ if not st.session_state.authenticated:
         if st.button("SİSTEME GİR"):
             if input_pass == UYGULAMA_SIFRESI:
                 st.session_state.authenticated = True
-                st.experimental_rerun()
-            else: st.error("Hatalı Kod!")
+                st.session_state.rerun_flag = True
+    if st.session_state.rerun_flag:
+        st.session_state.rerun_flag = False
+        st.experimental_rerun()
     st.stop()
 
 # --- DRIVE ---
@@ -94,13 +96,12 @@ with col_player:
         st.markdown(f"### {name_clean}")
         audio_url = f"https://www.googleapis.com/drive/v3/files/{active['id']}?alt=media&key={API_KEY}"
         
-        # HTML audio + JS auto-play
         html(f"""
         <audio id="player" class="audio-player" src="{audio_url}" controls autoplay></audio>
         <script>
         const player = document.getElementById("player");
         player.onended = function() {{
-            fetch("/?next_song=1").then(()=>location.reload());
+            window.location.href = "?next_song=1";
         }};
         </script>
         """, height=80)
