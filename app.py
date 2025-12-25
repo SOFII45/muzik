@@ -16,17 +16,10 @@ st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="wide")
 # --- CSS / PROFESYONEL TASARIM ---
 st.markdown("""
 <style>
-.stApp {
-    background: radial-gradient(circle at top, #0f0f0f 0%, #000000 100%);
-    color: white;
-    font-family: 'Inter', sans-serif;
-}
-.logo-img { width: 140px; height: 140px; border-radius:50%; display:block; margin:0 auto; border:3px solid #fff; box-shadow: 0 0 25px rgba(255,255,255,0.3);}
+.stApp { background: radial-gradient(circle at top, #0f0f0f 0%, #000000 100%); color: white; font-family: 'Inter', sans-serif;}
+.logo-img { width: 140px; height: 140px; border-radius:50%; display:block; margin:0 auto; border:3px solid #fff; box-shadow:0 0 25px rgba(255,255,255,0.3);}
 .logo-img:hover { transform: rotate(360deg); transition:0.5s;}
-.song-card { 
-    background: rgba(255,255,255,0.05); border-radius:15px; padding:15px; margin-bottom:10px;
-    transition:0.3s; display:flex; justify-content:space-between; align-items:center;
-}
+.song-card { background: rgba(255,255,255,0.05); border-radius:15px; padding:15px; margin-bottom:10px; transition:0.3s; display:flex; justify-content:space-between; align-items:center;}
 .song-card:hover { background: rgba(255,255,255,0.15); transform: scale(1.02); }
 .audio-player { width:100%; border-radius:15px; margin-top:10px;}
 h1,h2,h3 { font-family:'Syncopate', sans-serif; text-transform:uppercase; letter-spacing:1.5px; text-align:center;}
@@ -38,6 +31,7 @@ if "authenticated" not in st.session_state: st.session_state.authenticated = Fal
 if "current_idx" not in st.session_state: st.session_state.current_idx = 0
 if "songs" not in st.session_state: st.session_state.songs = []
 if "photos" not in st.session_state: st.session_state.photos = []
+if "rerun_flag" not in st.session_state: st.session_state.rerun_flag = False
 
 # --- GİRİŞ ---
 if not st.session_state.authenticated:
@@ -48,7 +42,7 @@ if not st.session_state.authenticated:
         if st.button("SİSTEME GİR"):
             if input_pass == UYGULAMA_SIFRESI:
                 st.session_state.authenticated = True
-                st.rerun()
+                st.experimental_rerun()
             else: st.error("Hatalı Kod!")
     st.stop()
 
@@ -85,7 +79,7 @@ with col_list:
         c1.markdown(f'<div class="song-card">{s["name"].replace(".mp3","")}</div>', unsafe_allow_html=True)
         if c2.button("▶️", key=f"play_{s['id']}"):
             st.session_state.current_idx = st.session_state.songs.index(s)
-            st.experimental_rerun()
+            st.session_state.rerun_flag = True
 
 # --- OYNATICI VE JS AUTO-PLAY ---
 with col_player:
@@ -106,7 +100,17 @@ with col_player:
         <script>
         const player = document.getElementById("player");
         player.onended = function() {{
-            fetch("{st.experimental_get_query_params().get('rerun_url',[''])[0]}").then(()=>location.reload());
+            fetch("/?next_song=1").then(()=>location.reload());
         }};
         </script>
         """, height=80)
+
+# --- RERUN FLAG ---
+if st.session_state.rerun_flag:
+    st.session_state.rerun_flag = False
+    st.experimental_rerun()
+
+# --- NEXT SONG QUERY PARAM ---
+if st.experimental_get_query_params().get("next_song"):
+    st.session_state.current_idx = (st.session_state.current_idx + 1) % len(st.session_state.songs)
+    st.experimental_rerun()
