@@ -77,9 +77,9 @@ def get_files(f_id):
         url = f"https://www.googleapis.com/drive/v3/files?q='{f_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
         response = requests.get(url)
         return response.json().get('files', [])
-    except: return []
+    except Exception as e:
+        return []
 
-# .mp3 ve .m4a dosyalarını destekle
 songs = sorted([f for f in get_files(MUZIK_FOLDER_ID) if f['name'].lower().endswith(('.mp3', '.m4a', '.wav'))], key=lambda x: x['name'])
 photos = get_files(FOTO_FOLDER_ID)
 
@@ -90,12 +90,11 @@ st.title(UYGULAMA_ADI)
 search = st.text_input("🔍 Kütüphanede Ara...", placeholder="Şarkı ismi...")
 filtered = [s for s in songs if search.lower() in s['name'].lower()]
 
-# Şarkı Listeleme
 for s in filtered:
     with st.container():
         col_txt, col_btn = st.columns([5, 1])
         with col_txt:
-            clean_name = s["name"].split('.')[0]
+            clean_name = s["name"].replace(".mp3", "").replace(".m4a", "").replace(".wav", "")
             st.markdown(f'<div class="song-card"><span class="song-title">{clean_name}</span></div>', unsafe_allow_html=True)
         with col_btn:
             if st.button("▶️", key=s['id']):
@@ -105,28 +104,27 @@ for s in filtered:
 # --- 6. GÜÇLÜ SIDEBAR OYNATICI ---
 if songs:
     cur = songs[st.session_state.idx]
-    cur_clean = cur['name'].split('.')[0]
+    cur_clean = cur['name'].replace(".mp3", "").replace(".m4a", "").replace(".wav", "")
     
     with st.sidebar:
         st.markdown("### 🦅 Şimdi Çalıyor")
         st.info(f"**{cur_clean}**")
         
-        # Kapak Fotoğrafı Mantığı
+        # Kapak Fotoğrafı
         match = next((p for p in photos if cur_clean.lower() in p['name'].lower()), None)
         p_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
         
         if p_id:
-            # Görsel URL (Direct Stream via API)
-            img_url = f"https://www.googleapis.com/drive/v3/files/{p_id}?alt=media&key={API_KEY}"
-            # use_container_width yerine width='stretch' (2026 Uyarısı Çözümü)
+            # Görsel için en stabil format
+            img_url = f"https://drive.google.com/uc?id={p_id}"
             st.image(img_url, width='stretch')
         
-        # SES OYNATICI (Direct Stream via API)
-        # ?alt=media parametresi Google'ın dosyayı ham veri olarak göndermesini sağlar.
-        stream_url = f"https://www.googleapis.com/drive/v3/files/{cur['id']}?alt=media&key={API_KEY}"
-        st.audio(stream_url, format="audio/mp3")
+        # SES OYNATICI - EN KRİTİK DEĞİŞİKLİK
+        # API yerine doğrudan Google Drive'ın "uc" (User Content) linkini deniyoruz
+        # Bu yöntem tarayıcı oynatıcıları için en uyumlu olandır
+        direct_link = f"https://drive.google.com/uc?export=download&id={cur['id']}"
+        st.audio(direct_link, format="audio/mp3")
         
-        # Navigasyon
         c1, c2 = st.columns(2)
         with c1:
             if st.button("⏮️ Geri"):
