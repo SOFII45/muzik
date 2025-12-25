@@ -1,10 +1,9 @@
 import streamlit as st
 import requests
 import random
-import time
-import io
+from streamlit.components.v1 import html
 
-# --- 1. YAPILANDIRMA VE SABİTLER ---
+# --- SABİTLER ---
 UYGULAMA_ADI = "CEMOŞUN MÜZİK KUTUSU"
 LOGO_URL = "https://p7.hiclipart.com/preview/256/896/4/vodafone-park-be%C5%9Fikta%C5%9F-j-k-football-team-super-lig-bjk-akatlar-arena-football.jpg"
 API_KEY = "AIzaSyAfXdRpKAV9pxZKRGYx5Cj_Btw1lIdCVaw"
@@ -14,150 +13,105 @@ UYGULAMA_SIFRESI = "1234"
 
 st.set_page_config(page_title=UYGULAMA_ADI, page_icon="🦅", layout="wide")
 
-# --- 2. GELİŞMİŞ GÖRSEL TASARIM (CSS) ---
-st.markdown(f"""
+# --- CSS / PROFESYONEL TASARIM ---
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@700&family=Inter:wght@400;600&display=swap');
-    
-    .stApp {{
-        background: radial-gradient(circle at top, #1a1a1a 0%, #000000 100%);
-        color: white;
-        font-family: 'Inter', sans-serif;
-    }}
-    
-    .logo-img {{
-        width: 140px; height: 140px;
-        border-radius: 50%;
-        border: 3px solid #fff;
-        box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
-        display: block; margin: 0 auto 15px auto;
-        transition: 0.5s;
-    }}
-    .logo-img:hover {{ transform: rotate(360deg); }}
-
-    .song-card {{
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 15px;
-        margin-bottom: 10px;
-        transition: 0.3s ease;
-    }}
-    .song-card:hover {{
-        background: rgba(255, 255, 255, 0.1);
-        border-left: 5px solid #ffffff;
-        transform: scale(1.01);
-    }}
-
-    .stButton>button {{
-        background: white; color: black;
-        border-radius: 25px; border: none;
-        font-weight: 700; transition: 0.3s;
-    }}
-    .stButton>button:hover {{
-        background: #000; color: white;
-        border: 1px solid white;
-    }}
-    
-    h1, h2, h3 {{ font-family: 'Syncopate', sans-serif; text-transform: uppercase; letter-spacing: 2px; }}
+.stApp { background: radial-gradient(circle at top, #0f0f0f 0%, #000000 100%); color: white; font-family: 'Inter', sans-serif;}
+.logo-img { width: 140px; height: 140px; border-radius:50%; display:block; margin:0 auto; border:3px solid #fff; box-shadow:0 0 25px rgba(255,255,255,0.3);}
+.logo-img:hover { transform: rotate(360deg); transition:0.5s;}
+.song-card { background: rgba(255,255,255,0.05); border-radius:15px; padding:15px; margin-bottom:10px; transition:0.3s; display:flex; justify-content:space-between; align-items:center;}
+.song-card:hover { background: rgba(255,255,255,0.15); transform: scale(1.02); }
+.audio-player { width:100%; border-radius:15px; margin-top:10px;}
+h1,h2,h3 { font-family:'Syncopate', sans-serif; text-transform:uppercase; letter-spacing:1.5px; text-align:center;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE (BELLEK YÖNETİMİ) ---
+# --- SESSION ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "current_idx" not in st.session_state: st.session_state.current_idx = 0
-if "auto_play" not in st.session_state: st.session_state.auto_play = False
+if "songs" not in st.session_state: st.session_state.songs = []
+if "photos" not in st.session_state: st.session_state.photos = []
+if "rerun_flag" not in st.session_state: st.session_state.rerun_flag = False
 
-# --- 4. GİRİŞ EKRANI ---
+# --- GİRİŞ ---
 if not st.session_state.authenticated:
     st.markdown(f'<img src="{LOGO_URL}" class="logo-img">', unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align:center;'>EAGLE ACCESS ONLY</h2>", unsafe_allow_html=True)
+    st.markdown("<h2>EAGLE ACCESS ONLY</h2>", unsafe_allow_html=True)
     with st.columns([1,2,1])[1]:
         input_pass = st.text_input("Giriş Kodunu Gir:", type="password")
         if st.button("SİSTEME GİR"):
             if input_pass == UYGULAMA_SIFRESI:
                 st.session_state.authenticated = True
-                st.rerun()
-            else: st.error("Hatalı Kod!")
+                st.session_state.rerun_flag = True
+    if st.session_state.rerun_flag:
+        st.session_state.rerun_flag = False
+        st.experimental_rerun()
     st.stop()
 
-# --- 5. DRIVE API YARDIMCILARI ---
-def get_files_from_drive(folder_id):
-    try:
-        url = f"https://www.googleapis.com/drive/v3/files?q='{folder_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
-        return requests.get(url).json().get('files', [])
-    except: return []
+# --- DRIVE ---
+@st.cache_data
+def get_files(folder_id):
+    files, page_token = [], None
+    while True:
+        url = f"https://www.googleapis.com/drive/v3/files?q='{folder_id}'+in+parents&fields=nextPageToken,files(id,name)&key={API_KEY}"
+        if page_token: url += f"&pageToken={page_token}"
+        res = requests.get(url).json()
+        files.extend(res.get("files",[]))
+        page_token = res.get("nextPageToken")
+        if not page_token: break
+    return files
 
-def download_as_bytes(file_id):
-    try:
-        url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={API_KEY}"
-        return requests.get(url).content
-    except: return None
+if not st.session_state.songs:
+    st.session_state.songs = sorted([f for f in get_files(MUZIK_FOLDER_ID) if f['name'].lower().endswith(".mp3")], key=lambda x:x['name'])
+if not st.session_state.photos:
+    st.session_state.photos = get_files(FOTO_FOLDER_ID)
 
-# Veriyi bir kez çek
-songs = sorted([f for f in get_files_from_drive(MUZIK_FOLDER_ID) if f['name'].lower().endswith('.mp3')], key=lambda x: x['name'])
-photos = get_files_from_drive(FOTO_FOLDER_ID)
-
-# --- 6. ANA ARAYÜZ ---
+# --- ANA ARAYÜZ ---
 st.markdown(f'<img src="{LOGO_URL}" class="logo-img">', unsafe_allow_html=True)
-st.markdown("<h1 style='text-align:center;'>VIBE PREMIUM</h1>", unsafe_allow_html=True)
+st.markdown("<h1>VIBE PREMIUM</h1>", unsafe_allow_html=True)
 
-col_list, col_player = st.columns([1.8, 1.2], gap="large")
+col_list, col_player = st.columns([1.8,1.2], gap="large")
 
+# --- KÜTÜPHANE ---
 with col_list:
-    st.subheader("🎵 Kütüphane")
-    search = st.text_input("Şarkılarda ara...", placeholder="Bir parça ismi yaz...")
-    
-    filtered_list = [s for s in songs if search.lower() in s['name'].lower()]
-    
-    for i, s in enumerate(filtered_list):
-        with st.container():
-            c1, c2 = st.columns([5, 1])
-            c1.markdown(f'<div class="song-card"><b>{s["name"].replace(".mp3","")}</b></div>', unsafe_allow_html=True)
-            if c2.button("▶️", key=f"play_{s['id']}"):
-                # Gerçek index'i bul
-                st.session_state.current_idx = songs.index(s)
-                st.rerun()
+    search = st.text_input("Şarkılarda ara...", placeholder="Parça ismi...")
+    filtered = [s for s in st.session_state.songs if search.lower() in s['name'].lower()]
+    for i,s in enumerate(filtered):
+        c1,c2 = st.columns([5,1])
+        c1.markdown(f'<div class="song-card">{s["name"].replace(".mp3","")}</div>', unsafe_allow_html=True)
+        if c2.button("▶️", key=f"play_{s['id']}"):
+            st.session_state.current_idx = st.session_state.songs.index(s)
+            st.session_state.rerun_flag = True
 
+# --- OYNATICI VE JS AUTO-PLAY ---
 with col_player:
-    st.subheader("🦅 Oynatıcı")
-    if songs:
-        active_song = songs[st.session_state.current_idx]
-        clean_name = active_song['name'].replace(".mp3", "")
+    if st.session_state.songs:
+        active = st.session_state.songs[st.session_state.current_idx]
+        name_clean = active["name"].replace(".mp3","")
+        photo_match = next((p for p in st.session_state.photos if name_clean.lower() == p['name'].lower().replace(".jpg","").replace(".png","")), None)
+        img_id = photo_match['id'] if photo_match else (random.choice(st.session_state.photos)['id'] if st.session_state.photos else None)
+        if img_id:
+            img_bytes = requests.get(f"https://www.googleapis.com/drive/v3/files/{img_id}?alt=media&key={API_KEY}").content
+            st.image(img_bytes, use_container_width=True)
+        st.markdown(f"### {name_clean}")
+        audio_url = f"https://www.googleapis.com/drive/v3/files/{active['id']}?alt=media&key={API_KEY}"
         
-        # Fotoğraf Eşleştirme (Gelişmiş)
-        match = next((p for p in photos if clean_name.lower()[:5] in p['name'].lower()), None)
-        active_photo_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
-        
-        # Kapak Fotoğrafını Göster
-        if active_photo_id:
-            img_data = download_as_bytes(active_photo_id)
-            if img_data:
-                st.image(img_data, use_container_width=True)
-        
-        st.markdown(f"### {clean_name}")
-        
-        # Ses Dosyasını Oynat
-        audio_bytes = download_as_bytes(active_song['id'])
-        if audio_bytes:
-            st.audio(audio_bytes, format="audio/mp3")
-        
-        # Navigasyon Kontrolleri
-        n1, n2, n3 = st.columns(3)
-        if n1.button("⏮️"):
-            st.session_state.current_idx = (st.session_state.current_idx - 1) % len(songs)
-            st.rerun()
-        if n2.button("⏭️"):
-            st.session_state.current_idx = (st.session_state.current_idx + 1) % len(songs)
-            st.rerun()
-        
-        st.divider()
-        # Otomatik Geçiş Ayarı
-        st.session_state.auto_play = st.toggle("Sıradaki Şarkıya Otomatik Geç", value=st.session_state.auto_play)
-        
-        if st.session_state.auto_play:
-            st.caption("ℹ️ Şarkı bittiğinde listedeki bir sonrakine geçilecektir.")
-            # Teknik Not: Tarayıcı audio bittiğini bildiremediği için bu 'bebek adımı' bir otomasyondur.
-            # Sayfa her yenilendiğinde (st.rerun) bir sonraki şarkıyı hazırlar.
+        html(f"""
+        <audio id="player" class="audio-player" src="{audio_url}" controls autoplay></audio>
+        <script>
+        const player = document.getElementById("player");
+        player.onended = function() {{
+            window.location.href = "?next_song=1";
+        }};
+        </script>
+        """, height=80)
 
-st.markdown("<br><br><br><center><small>Cemre için özel olarak kodlanmıştır. Beşiktaş Ruhuna Uygun.</small></center>", unsafe_allow_html=True)
+# --- RERUN FLAG ---
+if st.session_state.rerun_flag:
+    st.session_state.rerun_flag = False
+    st.experimental_rerun()
+
+# --- NEXT SONG QUERY PARAM ---
+if st.experimental_get_query_params().get("next_song"):
+    st.session_state.current_idx = (st.session_state.current_idx + 1) % len(st.session_state.songs)
+    st.experimental_rerun()
