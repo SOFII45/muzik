@@ -124,17 +124,19 @@ if songs:
         p_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
         
         if p_id:
-            # Görsel için de alternatif link yapısı daha sağlıklı olabilir
+            # Görsel çekme linki
             img = f"https://drive.google.com/uc?export=view&id={p_id}"
-            # UYARI DÜZELTMESİ: use_container_width=True yerine width='stretch'
+            # HATA DÜZELTMESİ: use_container_width yerine width='stretch' kullanıldı
             st.image(img, width='stretch')
         
-        # SES OYNATICI DÜZELTMESİ: 
-        # API anahtarlı link yerine doğrudan indirme (uc) linkini kullanıyoruz
-        stream = f"https://drive.google.com/uc?export=download&id={cur['id']}"
-        st.audio(stream, format="audio/mp3")
+        # SES OYNATICI DÜZELTMESİ
+        # Google Drive doğrudan stream'e izin vermediği için 'uc' (user content) linkini kullanıyoruz
+        stream_url = f"https://drive.google.com/uc?export=download&id={cur['id']}"
         
-        # Navigasyon (Buradaki butonlarda da gerekirse düzenleme yapılabilir)
+        # st.audio bazen cache nedeniyle takılabilir, bu yüzden doğrudan audio_tag kullanabiliriz
+        st.audio(stream_url, format="audio/mp3")
+        
+        # Navigasyon
         c1, c2 = st.columns(2)
         with c1:
             if st.button("⏮️ Geri"):
