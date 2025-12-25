@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import random
+import base64
 
 # --- 1. AYARLAR VE KİŞİSELLEŞTİRME ---
 UYGULAMA_ADI = "CEMRENİN MÜZİK KUTUSU"
@@ -47,7 +48,6 @@ st.markdown(f"""
         margin-bottom: 10px; 
         border-left: 5px solid #ffffff;
     }}
-    .song-title {{ color: #eee; font-weight: 600; font-size: 1.1em; }}
     section[data-testid="stSidebar"] {{
         background-color: #050505 !important;
         border-right: 1px solid #333;
@@ -55,7 +55,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. ŞİFRELEME VE SESSION STATE ---
+# --- 3. SESSION STATE ---
 if "auth" not in st.session_state: st.session_state.auth = False
 if "idx" not in st.session_state: st.session_state.idx = 0
 
@@ -70,15 +70,13 @@ if not st.session_state.auth:
         else: st.error("Hatalı Şifre!")
     st.stop()
 
-# --- 4. DATA FONKSİYONLARI ---
+# --- 4. DATA ---
 @st.cache_data(ttl=600)
 def get_files(f_id):
     try:
         url = f"https://www.googleapis.com/drive/v3/files?q='{f_id}'+in+parents&fields=files(id, name)&key={API_KEY}"
-        response = requests.get(url)
-        return response.json().get('files', [])
-    except Exception as e:
-        return []
+        return requests.get(url).json().get('files', [])
+    except: return []
 
 songs = sorted([f for f in get_files(MUZIK_FOLDER_ID) if f['name'].lower().endswith(('.mp3', '.m4a', '.wav'))], key=lambda x: x['name'])
 photos = get_files(FOTO_FOLDER_ID)
@@ -94,8 +92,7 @@ for s in filtered:
     with st.container():
         col_txt, col_btn = st.columns([5, 1])
         with col_txt:
-            clean_name = s["name"].replace(".mp3", "").replace(".m4a", "").replace(".wav", "")
-            st.markdown(f'<div class="song-card"><span class="song-title">{clean_name}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="song-card"><b>{s["name"].split(".")[0]}</b></div>', unsafe_allow_html=True)
         with col_btn:
             if st.button("▶️", key=s['id']):
                 st.session_state.idx = songs.index(s)
@@ -104,27 +101,33 @@ for s in filtered:
 # --- 6. GÜÇLÜ SIDEBAR OYNATICI ---
 if songs:
     cur = songs[st.session_state.idx]
-    cur_clean = cur['name'].replace(".mp3", "").replace(".m4a", "").replace(".wav", "")
+    cur_clean = cur['name'].split('.')[0]
     
     with st.sidebar:
         st.markdown("### 🦅 Şimdi Çalıyor")
         st.info(f"**{cur_clean}**")
         
-        # Kapak Fotoğrafı
         match = next((p for p in photos if cur_clean.lower() in p['name'].lower()), None)
         p_id = match['id'] if match else (random.choice(photos)['id'] if photos else None)
         
         if p_id:
-            # Görsel için en stabil format
-            img_url = f"https://drive.google.com/uc?id={p_id}"
+            # Görsel için direct stream
+            img_url = f"https://www.googleapis.com/drive/v3/files/{p_id}?alt=media&key={API_KEY}"
             st.image(img_url, width='stretch')
         
-        # SES OYNATICI - EN KRİTİK DEĞİŞİKLİK
-        # API yerine doğrudan Google Drive'ın "uc" (User Content) linkini deniyoruz
-        # Bu yöntem tarayıcı oynatıcıları için en uyumlu olandır
-        direct_link = f"https://drive.google.com/uc?export=download&id={cur['id']}"
-        st.audio(direct_link, format="audio/mp3")
+        # --- SES ÇÖZÜMÜ: HTML AUDIO TAG ---
+        # st.audio bazen Google linklerini sevmiyor, bu yüzden HTML5 player kullanıyoruz.
+        stream_url = f"https://www.googleapis.com/drive/v3/files/{cur['id']}?alt=media&key={API_KEY}"
         
+        audio_html = f"""
+            <audio controls autoplay style="width: 100%;">
+                <source src="{stream_url}" type="audio/mp3">
+                Tarayıcınız bu ses dosyasını desteklemiyor.
+            </audio>
+        """
+        st.markdown(audio_html, unsafe_allow_html=True)
+        
+        # Navigasyon
         c1, c2 = st.columns(2)
         with c1:
             if st.button("⏮️ Geri"):
@@ -136,7 +139,6 @@ if songs:
                 st.rerun()
         
         st.divider()
-        st.caption(f"Toplam {len(songs)} şarkı arasından {st.session_state.idx + 1}. çalınıyor.")
+        st.caption(f"{len(songs)} şarkıdan {st.session_state.idx + 1}. çalıyor.")
 
-# --- 7. BİLGİLENDİRME ---
-st.markdown("<br><hr><center><small>Cemre için özel olarak Beşiktaş temasıyla tasarlanmıştır.</small></center>", unsafe_allow_html=True)
+st.markdown("<br><hr><center><small>Cemre için özel olarak tasarlandı.</small></center>", unsafe_allow_html=True)
